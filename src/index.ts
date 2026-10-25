@@ -62,12 +62,20 @@ export async function searchEbay(reference: string, token: string, marketplace =
     ? [reference, japaneseNames[reference] ?? reference]
     : [`Pokemon Japanese ${reference}`];
   const marketplaces = marketplace === 'EBAY_BOTH' ? ['EBAY_FR', 'EBAY_US'] : [marketplace];
+  const usdRate = marketplaces.includes('EBAY_US') ? await (async () => {
+    const response = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await response.json() as { rates?: { EUR?: number } };
+    return data.rates?.EUR ?? 0.92;
+  })() : 1;
   const responses = await Promise.all(marketplaces.flatMap(currentMarketplace => queries.map(async query => {
     const params = new URLSearchParams({ q: query, limit: '50' });
     const response = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`, { headers: { Authorization: `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplace } });
     if (!response.ok) throw new Error(`Recherche eBay impossible (${response.status})`);
     const data = await response.json() as { itemSummaries?: EbayItem[] };
-    return (data.itemSummaries ?? []).map(item => ({ ...item, marketplace: currentMarketplace, title: `[${currentMarketplace === 'EBAY_US' ? 'USA' : 'FR'}] ${item.title ?? ''}` }));
+    return (data.itemSummaries ?? []).map(item => {
+      const isUsd = item.price?.currency === 'USD';
+      return { ...item, marketplace: currentMarketplace, title: `[${currentMarketplace === 'EBAY_US' ? 'USA' : 'FR'}] ${item.title ?? ''}`, price: isUsd ? { value: String(Number(item.price?.value ?? 0) * usdRate), currency: 'EUR' } : item.price };
+    });
   })));
   const unique = new Map<string, EbayItem>();
   responses.flat().forEach(item => unique.set(item.itemWebUrl ?? item.title ?? String(unique.size), item));
