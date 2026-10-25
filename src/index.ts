@@ -74,7 +74,7 @@ export async function searchEbay(reference: string, token: string, marketplace =
     const data = await response.json() as { itemSummaries?: EbayItem[] };
     return (data.itemSummaries ?? []).map(item => {
       const isUsd = item.price?.currency === 'USD';
-      return { ...item, marketplace: currentMarketplace, title: `[${currentMarketplace === 'EBAY_US' ? 'USA' : 'FR'}] ${item.title ?? ''}`, price: isUsd ? { value: String(Number(item.price?.value ?? 0) * usdRate), currency: 'EUR' } : item.price };
+      return { ...item, marketplace: currentMarketplace, title: `${currentMarketplace === 'EBAY_US' ? '🇺🇸' : '🇫🇷'} ${item.title ?? ''}`, price: isUsd ? { value: String(Number(item.price?.value ?? 0) * usdRate), currency: 'EUR' } : item.price };
     });
   })));
   const unique = new Map<string, EbayItem>();
