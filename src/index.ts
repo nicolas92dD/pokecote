@@ -9,7 +9,7 @@ type Sale = {
   url?: string;
 };
 
-type EbayItem = { title?: string; itemWebUrl?: string; image?: { imageUrl?: string }; price?: { value?: string; currency?: string } };
+type EbayItem = { title?: string; itemWebUrl?: string; image?: { imageUrl?: string }; price?: { value?: string; currency?: string }; marketplace?: string };
 
 function classify(title: string): { condition: 'raw' | 'graded'; grade?: string } {
   const upper = title.toUpperCase();
@@ -56,18 +56,19 @@ export async function ebayApplicationToken(): Promise<string> {
   return data.access_token;
 }
 
-export async function searchEbay(reference: string, token: string) {
+export async function searchEbay(reference: string, token: string, marketplace = 'EBAY_BOTH') {
   const japaneseNames: Record<string, string> = { 'ミュウ': 'Mew', 'ミュウツー': 'Mewtwo', 'ピカチュウ': 'Pikachu', 'リザードン': 'Charizard', 'ブラッキー': 'Umbreon', 'ゲンガー': 'Gengar', 'イーブイ': 'Eevee' };
   const queries = /[\u3040-\u30ff\u3400-\u9fff]/.test(reference)
     ? [reference, japaneseNames[reference] ?? reference]
     : [`Pokemon Japanese ${reference}`];
-  const responses = await Promise.all(queries.map(async query => {
+  const marketplaces = marketplace === 'EBAY_BOTH' ? ['EBAY_FR', 'EBAY_US'] : [marketplace];
+  const responses = await Promise.all(marketplaces.flatMap(currentMarketplace => queries.map(async query => {
     const params = new URLSearchParams({ q: query, limit: '50' });
-    const response = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`, { headers: { Authorization: `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': process.env.EBAY_MARKETPLACE_ID ?? 'EBAY_FR' } });
+    const response = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`, { headers: { Authorization: `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplace } });
     if (!response.ok) throw new Error(`Recherche eBay impossible (${response.status})`);
     const data = await response.json() as { itemSummaries?: EbayItem[] };
-    return data.itemSummaries ?? [];
-  }));
+    return (data.itemSummaries ?? []).map(item => ({ ...item, marketplace: currentMarketplace, title: `[${currentMarketplace === 'EBAY_US' ? 'USA' : 'FR'}] ${item.title ?? ''}` }));
+  })));
   const unique = new Map<string, EbayItem>();
   responses.flat().forEach(item => unique.set(item.itemWebUrl ?? item.title ?? String(unique.size), item));
   return [...unique.values()];
