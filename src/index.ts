@@ -9,7 +9,7 @@ type Sale = {
   url?: string;
 };
 
-type EbayItem = { title?: string; itemWebUrl?: string; image?: { imageUrl?: string }; price?: { value?: string; currency?: string }; marketplace?: string };
+type EbayItem = { title?: string; itemWebUrl?: string; itemCreationDate?: string; itemEndDate?: string; image?: { imageUrl?: string }; price?: { value?: string; currency?: string }; marketplace?: string };
 
 function classify(title: string): { condition: 'raw' | 'graded'; grade?: string } {
   const upper = title.toUpperCase();
